@@ -7,8 +7,11 @@ import type { WalletSigner } from '@/hooks/useWalletSigning';
 const walletState = vi.hoisted(() => ({ isConnected: false }));
 
 vi.mock('@/stores/walletStore', () => ({
-  useWalletStore: (selector: (state: { isConnected: boolean }) => unknown) =>
-    selector({ isConnected: walletState.isConnected }),
+  useWalletSession: () => ({
+    isConnected: walletState.isConnected,
+    address: walletState.isConnected ? 'GTESTWALLET' : null,
+    isDemoSession: false,
+  }),
 }));
 
 import { DonationWidget } from '../DonationWidget';

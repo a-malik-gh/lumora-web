@@ -1,165 +1,183 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCampaignStore } from "@/stores/campaignStore";
-import { useState } from "react";
+import { useCampaignStore, type MilestoneDraft } from "@/stores/campaignStore";
 
-interface Milestone {
-  title: string;
-  description: string;
-  amount: number;
-  dueDate: string;
-}
+const EMPTY_MILESTONE: MilestoneDraft = {
+  title: "",
+  description: "",
+  amount: 0,
+  dueDate: "",
+};
+
+const FIELD_CLASS =
+  "mt-2 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-950 dark:text-white";
 
 export default function MilestonesPage() {
   const router = useRouter();
-  const { creationData, updateCreationData, setCreationStep } = useCampaignStore();
-  const [milestones, setMilestones] = useState<Milestone[]>(creationData.milestones || []);
-  const [newMilestone, setNewMilestone] = useState<Milestone>({
-    title: "",
-    description: "",
-    amount: 0,
-    dueDate: "",
-  });
+  const creationData = useCampaignStore((state) => state.creationData);
+  const updateCreationData = useCampaignStore(
+    (state) => state.updateCreationData,
+  );
+  const setCreationStep = useCampaignStore((state) => state.setCreationStep);
+  const milestones = creationData.milestones ?? [];
+  const draft = creationData.milestoneDraft ?? EMPTY_MILESTONE;
 
-  const handlePrevious = () => {
-    setCreationStep(2);
-    router.push("/create-campaign/details");
-  };
-
-  const handleReview = () => {
-    updateCreationData({ milestones });
-    setCreationStep(4);
-    router.push("/create-campaign");
+  const updateDraft = (patch: Partial<MilestoneDraft>) => {
+    updateCreationData({ milestoneDraft: { ...draft, ...patch } });
   };
 
   const addMilestone = () => {
-    if (newMilestone.title && newMilestone.amount > 0) {
-      setMilestones([...milestones, newMilestone]);
-      setNewMilestone({ title: "", description: "", amount: 0, dueDate: "" });
-    }
+    if (!draft.title.trim() || draft.amount <= 0) return;
+
+    updateCreationData({
+      milestones: [...milestones, { ...draft, title: draft.title.trim() }],
+      milestoneDraft: { ...EMPTY_MILESTONE },
+    });
   };
 
   const removeMilestone = (index: number) => {
-    const updated = milestones.filter((_, i) => i !== index);
-    setMilestones(updated);
+    updateCreationData({
+      milestones: milestones.filter((_, milestoneIndex) => milestoneIndex !== index),
+    });
+  };
+
+  const handleBack = () => {
+    setCreationStep(2);
+    router.push("/create-campaign/story");
+  };
+
+  const handleNext = () => {
+    setCreationStep(4);
+    router.push("/create-campaign/assets");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Milestones</h1>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          {/* Existing Milestones */}
-          {milestones.length > 0 && (
-            <div className="mb-8">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Your Milestones</h3>
-              <ul className="space-y-4">
-                {milestones.map((milestone, index) => (
-                  <li key={index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white">{milestone.title}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{milestone.description}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
-                          Amount: ${milestone.amount.toLocaleString()} | Due: {milestone.dueDate}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => removeMilestone(index)}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+      <div className="max-w-3xl">
+        <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
+          Break the work into milestones
+        </h2>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          Milestones are optional. Add measurable outcomes so donors can follow
+          progress.
+        </p>
 
-          {/* Add New Milestone */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Add New Milestone</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="milestoneTitle" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    id="milestoneTitle"
-                    value={newMilestone.title}
-                    onChange={(e) => setNewMilestone({ ...newMilestone, title: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="milestoneAmount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Amount
-                  </label>
-                  <input
-                    type="number"
-                    id="milestoneAmount"
-                    value={newMilestone.amount || ""}
-                    onChange={(e) => setNewMilestone({ ...newMilestone, amount: Number(e.target.value) })}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="milestoneDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Description
-                </label>
-                <textarea
-                  id="milestoneDescription"
-                  rows={3}
-                  value={newMilestone.description}
-                  onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm"
-                />
-              </div>
-              <div>
-                <label htmlFor="milestoneDueDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  id="milestoneDueDate"
-                  value={newMilestone.dueDate}
-                  onChange={(e) => setNewMilestone({ ...newMilestone, dueDate: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white sm:text-text-sm"
-                />
-              </div>
-              <button
-                onClick={addMilestone}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Add Milestone
-              </button>
+        {milestones.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              Added milestones
+            </h3>
+            <ul className="mt-3 space-y-3">
+              {milestones.map((milestone, index) => (
+                <li
+                  key={`${milestone.title}-${index}`}
+                  className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700"
+                >
+                  <div>
+                    <p className="font-semibold text-slate-950 dark:text-white">
+                      {milestone.title}
+                    </p>
+                    {milestone.description && (
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                        {milestone.description}
+                      </p>
+                    )}
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                      {(creationData.currency ?? "$") + milestone.amount.toLocaleString()}
+                      {milestone.dueDate ? ` · Due ${milestone.dueDate}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeMilestone(index)}
+                    className="min-h-11 shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-300 dark:hover:bg-red-950"
+                    aria-label={`Remove ${milestone.title}`}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="mt-8 rounded-xl bg-slate-50 p-5 dark:bg-slate-950">
+          <h3 className="font-semibold text-slate-950 dark:text-white">
+            Add a milestone
+          </h3>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <div>
+              <label htmlFor="milestoneTitle" className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Title
+              </label>
+              <input
+                id="milestoneTitle"
+                type="text"
+                value={draft.title}
+                onChange={(event) => updateDraft({ title: event.target.value })}
+                className={FIELD_CLASS}
+              />
+            </div>
+            <div>
+              <label htmlFor="milestoneAmount" className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Amount
+              </label>
+              <input
+                id="milestoneAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={draft.amount || ""}
+                onChange={(event) => updateDraft({ amount: Number(event.target.value) })}
+                className={FIELD_CLASS}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="milestoneDescription" className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Description <span className="font-normal text-slate-500">(optional)</span>
+              </label>
+              <textarea
+                id="milestoneDescription"
+                rows={3}
+                value={draft.description}
+                onChange={(event) => updateDraft({ description: event.target.value })}
+                className={FIELD_CLASS}
+              />
+            </div>
+            <div>
+              <label htmlFor="milestoneDueDate" className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Due date <span className="font-normal text-slate-500">(optional)</span>
+              </label>
+              <input
+                id="milestoneDueDate"
+                type="date"
+                value={draft.dueDate}
+                onChange={(event) => updateDraft({ dueDate: event.target.value })}
+                className={FIELD_CLASS}
+              />
             </div>
           </div>
-
-          <div className="mt-8 flex justify-between">
-            <button
-              onClick={handlePrevious}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Previous
-            </button>
-            <button
-              onClick={handleReview}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              Review & Deploy
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={addMilestone}
+            disabled={!draft.title.trim() || draft.amount <= 0}
+            className="mt-5 min-h-11 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+          >
+            Add milestone
+          </button>
         </div>
       </div>
-    </div>
+
+      <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 dark:border-slate-800 sm:flex-row sm:justify-between">
+        <button type="button" onClick={handleBack} className="min-h-11 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
+          Back: Story
+        </button>
+        <button type="button" onClick={handleNext} className="min-h-11 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2">
+          Next: Assets
+        </button>
+      </div>
+    </section>
   );
 }

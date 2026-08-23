@@ -17,7 +17,7 @@ import {
   injectedWalletSigner,
   type WalletSigner,
 } from "@/hooks/useWalletSigning";
-import { useWalletStore } from "@/stores/walletStore";
+import { useWalletSession } from "@/stores/walletStore";
 
 type DonationWidgetProps = {
   campaignId: string;
@@ -41,7 +41,7 @@ export function DonationWidget({ campaignId, signer }: DonationWidgetProps) {
   const [amountInput, setAmountInput] = useState<string>("25");
   const [anonymous, setAnonymous] = useState(false);
 
-  const isConnected = useWalletStore((state) => state.isConnected);
+  const { isConnected } = useWalletSession();
   const {
     signDonation,
     isSigning,
