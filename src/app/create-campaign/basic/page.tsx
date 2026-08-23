@@ -1,80 +1,123 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type { FormEvent } from "react";
 import { useCampaignStore } from "@/stores/campaignStore";
+
+const FIELD_CLASS =
+  "mt-2 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-950 dark:text-white";
 
 export default function BasicInformationPage() {
   const router = useRouter();
-  const { creationData, updateCreationData, setCreationStep } = useCampaignStore();
+  const creationData = useCampaignStore((state) => state.creationData);
+  const updateCreationData = useCampaignStore(
+    (state) => state.updateCreationData,
+  );
+  const setCreationStep = useCampaignStore((state) => state.setCreationStep);
 
-  const handleNext = () => {
+  const handleNext = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setCreationStep(2);
-    router.push("/create-campaign/details");
+    router.push("/create-campaign/story");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Basic Information</h1>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Campaign Title
-              </label>
-              <input
-                type="text"
-                id="title"
-                value={creationData.title || ""}
-                onChange={(e) => updateCreationData({ title: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm"
-              />
-            </div>
+    <form
+      onSubmit={handleNext}
+      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8"
+    >
+      <div className="max-w-3xl">
+        <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
+          Start with the essentials
+        </h2>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          Tell donors who is creating this campaign and how it should be
+          categorized.
+        </p>
 
-            <div>
-              <label htmlFor="creatorName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Your Name
-              </label>
-              <input
-                type="text"
-                id="creatorName"
-                value={creationData.creatorName || ""}
-                onChange={(e) => updateCreationData({ creatorName: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Category
-              </label>
-              <select
-                id="category"
-                value={creationData.category || "general"}
-                onChange={(e) => updateCreationData({ category: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm"
-              >
-                <option value="general">General</option>
-                <option value="education">Education</option>
-                <option value="environment">Environment</option>
-                <option value="technology">Technology</option>
-                <option value="community">Community</option>
-                <option value="arts">Arts & Culture</option>
-              </select>
-            </div>
+        <div className="mt-8 space-y-6">
+          <div>
+            <label
+              htmlFor="title"
+              className="text-sm font-semibold text-slate-800 dark:text-slate-200"
+            >
+              Campaign title
+            </label>
+            <input
+              id="title"
+              name="title"
+              type="text"
+              required
+              maxLength={100}
+              autoComplete="off"
+              value={creationData.title ?? ""}
+              onChange={(event) =>
+                updateCreationData({ title: event.target.value })
+              }
+              className={FIELD_CLASS}
+              aria-describedby="title-help"
+            />
+            <p id="title-help" className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Use a short, specific title that explains the goal.
+            </p>
           </div>
 
-          <div className="mt-8 flex justify-end">
-            <button
-              onClick={handleNext}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          <div>
+            <label
+              htmlFor="creatorName"
+              className="text-sm font-semibold text-slate-800 dark:text-slate-200"
             >
-              Next: Campaign Details
-            </button>
+              Creator name
+            </label>
+            <input
+              id="creatorName"
+              name="creatorName"
+              type="text"
+              required
+              autoComplete="name"
+              value={creationData.creatorName ?? ""}
+              onChange={(event) =>
+                updateCreationData({ creatorName: event.target.value })
+              }
+              className={FIELD_CLASS}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="category"
+              className="text-sm font-semibold text-slate-800 dark:text-slate-200"
+            >
+              Category
+            </label>
+            <select
+              id="category"
+              name="category"
+              value={creationData.category ?? "general"}
+              onChange={(event) =>
+                updateCreationData({ category: event.target.value })
+              }
+              className={FIELD_CLASS}
+            >
+              <option value="general">General</option>
+              <option value="education">Education</option>
+              <option value="environment">Environment</option>
+              <option value="technology">Technology</option>
+              <option value="community">Community</option>
+              <option value="arts">Arts &amp; Culture</option>
+            </select>
           </div>
         </div>
       </div>
-    </div>
+
+      <div className="mt-8 flex justify-end border-t border-slate-200 pt-6 dark:border-slate-800">
+        <button
+          type="submit"
+          className="min-h-11 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
+          Next: Story
+        </button>
+      </div>
+    </form>
   );
 }
