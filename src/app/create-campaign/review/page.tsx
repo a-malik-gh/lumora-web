@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getMilestoneBudget } from "@/lib/campaignBudget";
 import { useCampaignStore } from "@/stores/campaignStore";
 
 export default function CampaignReviewPage() {
@@ -12,6 +13,10 @@ export default function CampaignReviewPage() {
   );
   const setCreationStep = useCampaignStore((state) => state.setCreationStep);
   const currency = creationData.currency ?? "$";
+  const milestoneBudget = getMilestoneBudget(
+    creationData.goalAmount ?? 0,
+    creationData.milestones,
+  );
 
   const missingFields = [
     !creationData.title?.trim() && "campaign title",
@@ -19,6 +24,7 @@ export default function CampaignReviewPage() {
     !creationData.description?.trim() && "campaign story",
     !(creationData.goalAmount && creationData.goalAmount > 0) && "funding goal",
     !creationData.endDate && "end date",
+    milestoneBudget.isOverBudget && "milestone budget within the funding goal",
   ].filter(Boolean) as string[];
 
   const canContinue =

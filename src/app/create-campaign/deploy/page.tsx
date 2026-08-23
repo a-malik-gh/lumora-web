@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { getMilestoneBudget } from "@/lib/campaignBudget";
 import { useCampaignStore } from "@/stores/campaignStore";
 import { useWalletSession } from "@/stores/walletStore";
 
@@ -24,11 +25,16 @@ export default function CampaignDeployPage() {
   );
   const { address, isConnected } = useWalletSession();
   const isBusy = deploymentStatus === "signing" || deploymentStatus === "deploying";
+  const milestoneBudget = getMilestoneBudget(
+    creationData.goalAmount ?? 0,
+    creationData.milestones,
+  );
   const isComplete = Boolean(
     creationData.title &&
       creationData.description &&
       creationData.goalAmount &&
-      creationData.termsAccepted,
+      creationData.termsAccepted &&
+      !milestoneBudget.isOverBudget,
   );
 
   const handleBack = () => {

@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
+import { CurrencyInputField } from "@/components/campaign-creation/CurrencyInputField";
+import { DatePickerField } from "@/components/campaign-creation/DatePickerField";
+import { getMilestoneTotal } from "@/lib/campaignBudget";
 import { useCampaignStore } from "@/stores/campaignStore";
 
 const FIELD_CLASS =
@@ -14,6 +17,9 @@ export default function CampaignStoryPage() {
     (state) => state.updateCreationData,
   );
   const setCreationStep = useCampaignStore((state) => state.setCreationStep);
+  const milestoneTotal = getMilestoneTotal(creationData.milestones);
+  const fundingGoal = creationData.goalAmount ?? 0;
+  const goalBelowMilestones = milestoneTotal > fundingGoal;
 
   const handleNext = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -66,48 +72,33 @@ export default function CampaignStoryPage() {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="goalAmount"
-                className="text-sm font-semibold text-slate-800 dark:text-slate-200"
-              >
-                Funding goal
-              </label>
-              <input
-                id="goalAmount"
-                name="goalAmount"
-                type="number"
-                required
-                min="0.01"
-                step="0.01"
-                inputMode="decimal"
-                value={creationData.goalAmount || ""}
-                onChange={(event) =>
-                  updateCreationData({ goalAmount: Number(event.target.value) })
-                }
-                className={FIELD_CLASS}
-              />
-            </div>
+            <CurrencyInputField
+              id="goalAmount"
+              label="Funding goal"
+              required
+              min={Math.max(0.01, milestoneTotal)}
+              value={creationData.goalAmount || ""}
+              onChange={(goalAmount) => updateCreationData({ goalAmount })}
+              helperText={
+                milestoneTotal > 0
+                  ? `$${milestoneTotal.toLocaleString()} is already allocated across milestones.`
+                  : "Set the total amount this campaign needs to raise."
+              }
+              error={
+                goalBelowMilestones
+                  ? `Funding goal must be at least $${milestoneTotal.toLocaleString()} to cover existing milestones.`
+                  : undefined
+              }
+            />
 
-            <div>
-              <label
-                htmlFor="endDate"
-                className="text-sm font-semibold text-slate-800 dark:text-slate-200"
-              >
-                End date
-              </label>
-              <input
-                id="endDate"
-                name="endDate"
-                type="date"
-                required
-                value={creationData.endDate ?? ""}
-                onChange={(event) =>
-                  updateCreationData({ endDate: event.target.value })
-                }
-                className={FIELD_CLASS}
-              />
-            </div>
+            <DatePickerField
+              id="endDate"
+              label="End date"
+              required
+              value={creationData.endDate ?? ""}
+              onChange={(endDate) => updateCreationData({ endDate })}
+              helperText="Choose the final day donors can contribute."
+            />
           </div>
         </div>
       </div>
