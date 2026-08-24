@@ -28,12 +28,16 @@ describe("campaign creation persistence", () => {
       title: "A community solar library",
       description: "A persisted story that should still exist after reload.",
       assetDraftUrl: "https://example.com/in-progress-photo.jpg",
-      milestoneDraft: {
-        title: "Install the panels",
-        description: "",
-        amount: 2500,
-        dueDate: "2026-10-01",
-      },
+      acceptedAssets: ["XLM", "AQUA"],
+      network: "mainnet",
+      milestones: [
+        {
+          title: "Install the panels",
+          description: "",
+          amount: 2500,
+          dueDate: "2026-10-01",
+        },
+      ],
     });
     firstLoad.useCampaignStore.getState().setCreationStep(4);
 
@@ -54,7 +58,9 @@ describe("campaign creation persistence", () => {
     expect(restored.creationData.assetDraftUrl).toBe(
       "https://example.com/in-progress-photo.jpg",
     );
-    expect(restored.creationData.milestoneDraft?.title).toBe(
+    expect(restored.creationData.acceptedAssets).toEqual(["XLM", "AQUA"]);
+    expect(restored.creationData.network).toBe("mainnet");
+    expect(restored.creationData.milestones?.[0]?.title).toBe(
       "Install the panels",
     );
   });

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getMilestoneBudget } from "@/lib/campaignBudget";
+import { getDurationDays } from "@/lib/fundingConfig";
+import { validateMilestones } from "@/lib/milestones";
 import { useCampaignStore } from "@/stores/campaignStore";
 
 export default function CampaignReviewPage() {
@@ -13,9 +14,14 @@ export default function CampaignReviewPage() {
   );
   const setCreationStep = useCampaignStore((state) => state.setCreationStep);
   const currency = creationData.currency ?? "$";
-  const milestoneBudget = getMilestoneBudget(
+  const milestones = creationData.milestones ?? [];
+  const milestoneValidation = validateMilestones(
     creationData.goalAmount ?? 0,
-    creationData.milestones,
+    milestones,
+  );
+  const durationDays = getDurationDays(
+    creationData.durationPreset ?? 30,
+    creationData.customDurationDays ?? 30,
   );
 
   const missingFields = [
@@ -23,21 +29,24 @@ export default function CampaignReviewPage() {
     !creationData.creatorName?.trim() && "creator name",
     !creationData.description?.trim() && "campaign story",
     !(creationData.goalAmount && creationData.goalAmount > 0) && "funding goal",
-    !creationData.endDate && "end date",
-    milestoneBudget.isOverBudget && "milestone budget within the funding goal",
+    (creationData.acceptedAssets ?? []).length === 0 && "accepted assets",
+    !creationData.endDate && "campaign duration",
+    milestones.length > 0 &&
+      !milestoneValidation.isValid &&
+      "valid milestones (ascending targets, final milestone equal to the goal)",
   ].filter(Boolean) as string[];
 
   const canContinue =
     missingFields.length === 0 && Boolean(creationData.termsAccepted);
 
   const handleBack = () => {
-    setCreationStep(4);
+    setCreationStep(5);
     router.push("/create-campaign/assets");
   };
 
   const handleNext = () => {
     if (!canContinue) return;
-    setCreationStep(6);
+    setCreationStep(7);
     router.push("/create-campaign/deploy");
   };
 
@@ -71,23 +80,59 @@ export default function CampaignReviewPage() {
         </ReviewSection>
 
         <ReviewSection title="Story" editPath="/create-campaign/story">
+          <SummaryRow label="Story" value={creationData.description || "Not provided"} />
+        </ReviewSection>
+
+        <ReviewSection title="Funding" editPath="/create-campaign/funding">
           <SummaryRow
             label="Funding goal"
             value={`${currency}${(creationData.goalAmount ?? 0).toLocaleString()}`}
           />
-          <SummaryRow label="End date" value={creationData.endDate || "Not provided"} />
-          <SummaryRow label="Story" value={creationData.description || "Not provided"} />
+          <SummaryRow
+            label="Accepted assets"
+            value={
+              (creationData.acceptedAssets ?? []).join(", ") || "None selected"
+            }
+          />
+          <SummaryRow
+            label="Duration"
+            value={
+              creationData.endDate
+                ? `${durationDays} days · ends ${creationData.endDate}`
+                : "Not provided"
+            }
+          />
+          <SummaryRow
+            label="Minimum donation"
+            value={
+              creationData.minimumDonation
+                ? `${currency}${creationData.minimumDonation.toLocaleString()}`
+                : "No minimum"
+            }
+          />
+          <SummaryRow
+            label="Network"
+            value={creationData.network === "mainnet" ? "Mainnet" : "Testnet"}
+          />
         </ReviewSection>
 
         <ReviewSection title="Milestones" editPath="/create-campaign/milestones">
-          {(creationData.milestones ?? []).length === 0 ? (
+          {milestones.length === 0 ? (
             <p className="text-sm text-slate-500 dark:text-slate-400">No milestones added.</p>
           ) : (
             <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
-              {creationData.milestones?.map((milestone, index) => (
+              {milestones.map((milestone, index) => (
                 <li key={`${milestone.title}-${index}`}>
-                  <span className="font-semibold">{milestone.title}</span>
+                  <span className="font-semibold">
+                    {milestone.title || `Milestone ${index + 1}`}
+                  </span>
                   {` · ${currency}${milestone.amount.toLocaleString()}`}
+                  {milestone.dueDate ? ` · due ${milestone.dueDate}` : ""}
+                  {milestoneValidation.errors[index] && (
+                    <span className="ml-2 font-medium text-red-700 dark:text-red-300">
+                      {milestoneValidation.errors[index]}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

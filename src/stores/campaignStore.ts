@@ -6,6 +6,11 @@ import {
   type StateStorage,
 } from "zustand/middleware";
 import type { CampaignCreationStepId } from "@/lib/campaignCreation";
+import type {
+  AcceptedAsset,
+  CampaignNetwork,
+  DurationPreset,
+} from "@/lib/fundingConfig";
 import type { Campaign } from "@/types/campaign";
 
 export const CAMPAIGN_CREATION_STORAGE_KEY = "lumora-campaign-creation";
@@ -13,7 +18,9 @@ export const CAMPAIGN_CREATION_STORAGE_KEY = "lumora-campaign-creation";
 export interface MilestoneDraft {
   title: string;
   description: string;
+  /** Cumulative funding target this milestone unlocks at. */
   amount: number;
+  /** Expected completion date (yyyy-mm-dd). */
   dueDate: string;
 }
 
@@ -24,9 +31,13 @@ export interface CampaignCreationData
   > {
   termsAccepted: boolean;
   milestones: MilestoneDraft[];
-  milestoneDraft: MilestoneDraft;
   supportingAssetUrls: string[];
   assetDraftUrl: string;
+  acceptedAssets: AcceptedAsset[];
+  durationPreset: DurationPreset;
+  customDurationDays: number;
+  minimumDonation: number;
+  network: CampaignNetwork;
   updates: Array<{ title: string; content: string; createdAt: string }>;
 }
 
@@ -56,13 +67,6 @@ export interface CampaignState {
   resetCampaign: () => void;
 }
 
-const EMPTY_MILESTONE: MilestoneDraft = {
-  title: "",
-  description: "",
-  amount: 0,
-  dueDate: "",
-};
-
 const serverStorage: StateStorage = {
   getItem: () => null,
   setItem: () => undefined,
@@ -87,9 +91,13 @@ function createInitialCreationData(): Partial<CampaignCreationData> {
     status: "draft",
     termsAccepted: false,
     milestones: [],
-    milestoneDraft: { ...EMPTY_MILESTONE },
     supportingAssetUrls: [],
     assetDraftUrl: "",
+    acceptedAssets: ["XLM"],
+    durationPreset: 30,
+    customDurationDays: 30,
+    minimumDonation: 0,
+    network: "testnet",
     updates: [],
   };
 }

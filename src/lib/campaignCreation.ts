@@ -1,10 +1,11 @@
 export const CAMPAIGN_CREATION_STEPS = [
   { id: 1, name: "Basics", path: "/create-campaign/basic" },
   { id: 2, name: "Story", path: "/create-campaign/story" },
-  { id: 3, name: "Milestones", path: "/create-campaign/milestones" },
-  { id: 4, name: "Assets", path: "/create-campaign/assets" },
-  { id: 5, name: "Review", path: "/create-campaign/review" },
-  { id: 6, name: "Deploy", path: "/create-campaign/deploy" },
+  { id: 3, name: "Funding", path: "/create-campaign/funding" },
+  { id: 4, name: "Milestones", path: "/create-campaign/milestones" },
+  { id: 5, name: "Assets", path: "/create-campaign/assets" },
+  { id: 6, name: "Review", path: "/create-campaign/review" },
+  { id: 7, name: "Deploy", path: "/create-campaign/deploy" },
 ] as const;
 
 export type CampaignCreationStepId =
