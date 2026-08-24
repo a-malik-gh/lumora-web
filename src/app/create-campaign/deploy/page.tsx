@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { getMilestoneBudget } from "@/lib/campaignBudget";
+import { areMilestonesValid } from "@/lib/milestones";
 import { useCampaignStore } from "@/stores/campaignStore";
 import { useWalletSession } from "@/stores/walletStore";
 
@@ -25,20 +25,19 @@ export default function CampaignDeployPage() {
   );
   const { address, isConnected } = useWalletSession();
   const isBusy = deploymentStatus === "signing" || deploymentStatus === "deploying";
-  const milestoneBudget = getMilestoneBudget(
-    creationData.goalAmount ?? 0,
-    creationData.milestones,
-  );
+  const milestones = creationData.milestones ?? [];
   const isComplete = Boolean(
     creationData.title &&
       creationData.description &&
       creationData.goalAmount &&
+      (creationData.acceptedAssets ?? []).length > 0 &&
       creationData.termsAccepted &&
-      !milestoneBudget.isOverBudget,
+      (milestones.length === 0 ||
+        areMilestonesValid(creationData.goalAmount ?? 0, milestones)),
   );
 
   const handleBack = () => {
-    setCreationStep(5);
+    setCreationStep(6);
     router.push("/create-campaign/review");
   };
 
@@ -91,9 +90,20 @@ export default function CampaignDeployPage() {
             value={`${creationData.currency ?? "$"}${(creationData.goalAmount ?? 0).toLocaleString()}`}
           />
           <Detail label="Wallet" value={address || "Not connected"} />
-          <Detail label="Network" value="Stellar testnet" />
+          <Detail
+            label="Network"
+            value={
+              creationData.network === "mainnet"
+                ? "Stellar mainnet"
+                : "Stellar testnet"
+            }
+          />
+          <Detail
+            label="Accepted assets"
+            value={(creationData.acceptedAssets ?? []).join(", ") || "None"}
+          />
           <Detail label="Estimated fee" value="0.00001 XLM" />
-          <Detail label="Milestones" value={`${creationData.milestones?.length ?? 0}`} />
+          <Detail label="Milestones" value={`${milestones.length}`} />
         </dl>
 
         <div

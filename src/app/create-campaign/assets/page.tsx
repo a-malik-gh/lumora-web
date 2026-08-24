@@ -26,12 +26,12 @@ export default function CampaignAssetsPage() {
   };
 
   const handleBack = () => {
-    setCreationStep(3);
+    setCreationStep(4);
     router.push("/create-campaign/milestones");
   };
 
   const handleNext = () => {
-    setCreationStep(5);
+    setCreationStep(6);
     router.push("/create-campaign/review");
   };
 

@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState, type DragEvent } from "react";
 import { CurrencyInputField } from "@/components/campaign-creation/CurrencyInputField";
 import { DatePickerField } from "@/components/campaign-creation/DatePickerField";
 import {
-  canAddMilestoneAmount,
-  getMilestoneBudget,
-} from "@/lib/campaignBudget";
+  MAX_MILESTONES,
+  moveMilestone,
+  validateMilestones,
+} from "@/lib/milestones";
 import { useCampaignStore, type MilestoneDraft } from "@/stores/campaignStore";
 
 const EMPTY_MILESTONE: MilestoneDraft = {
@@ -26,42 +28,56 @@ export default function MilestonesPage() {
     (state) => state.updateCreationData,
   );
   const setCreationStep = useCampaignStore((state) => state.setCreationStep);
-  const milestones = creationData.milestones ?? [];
-  const draft = creationData.milestoneDraft ?? EMPTY_MILESTONE;
-  const fundingGoal = creationData.goalAmount ?? 0;
-  const budget = getMilestoneBudget(fundingGoal, milestones);
-  const amountExceedsBudget = draft.amount > budget.remaining;
-  const canAddMilestone =
-    Boolean(draft.title.trim()) &&
-    canAddMilestoneAmount(fundingGoal, milestones, draft.amount);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
-  const updateDraft = (patch: Partial<MilestoneDraft>) => {
-    updateCreationData({ milestoneDraft: { ...draft, ...patch } });
+  const milestones = creationData.milestones ?? [];
+  const fundingGoal = creationData.goalAmount ?? 0;
+  const validation = validateMilestones(fundingGoal, milestones);
+  const canContinue = milestones.length === 0 || validation.isValid;
+
+  const setMilestones = (next: MilestoneDraft[]) => {
+    updateCreationData({ milestones: next });
+  };
+
+  const updateMilestone = (index: number, patch: Partial<MilestoneDraft>) => {
+    setMilestones(
+      milestones.map((milestone, milestoneIndex) =>
+        milestoneIndex === index ? { ...milestone, ...patch } : milestone,
+      ),
+    );
   };
 
   const addMilestone = () => {
-    if (!canAddMilestone) return;
-
-    updateCreationData({
-      milestones: [...milestones, { ...draft, title: draft.title.trim() }],
-      milestoneDraft: { ...EMPTY_MILESTONE },
-    });
+    if (milestones.length >= MAX_MILESTONES) return;
+    setMilestones([...milestones, { ...EMPTY_MILESTONE }]);
   };
 
   const removeMilestone = (index: number) => {
-    updateCreationData({
-      milestones: milestones.filter((_, milestoneIndex) => milestoneIndex !== index),
-    });
+    setMilestones(
+      milestones.filter((_, milestoneIndex) => milestoneIndex !== index),
+    );
+  };
+
+  const reorder = (fromIndex: number, toIndex: number) => {
+    setMilestones(moveMilestone(milestones, fromIndex, toIndex));
+  };
+
+  const handleDrop = (event: DragEvent, toIndex: number) => {
+    event.preventDefault();
+    if (dragIndex !== null) reorder(dragIndex, toIndex);
+    setDragIndex(null);
+    setDropIndex(null);
   };
 
   const handleBack = () => {
-    setCreationStep(2);
-    router.push("/create-campaign/story");
+    setCreationStep(3);
+    router.push("/create-campaign/funding");
   };
 
   const handleNext = () => {
-    if (budget.isOverBudget) return;
-    setCreationStep(4);
+    if (!canContinue) return;
+    setCreationStep(5);
     router.push("/create-campaign/assets");
   };
 
@@ -72,172 +88,207 @@ export default function MilestonesPage() {
           Break the work into milestones
         </h2>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-          Milestones are optional. Add measurable outcomes so donors can follow
-          progress.
+          Milestones are cumulative funding targets: each target must be higher
+          than the one before it, and the final milestone must equal your
+          {" "}
+          <span className="font-semibold text-slate-950 dark:text-white">
+            ${fundingGoal.toLocaleString()}
+          </span>{" "}
+          funding goal. Add up to {MAX_MILESTONES}, and drag to reorder.
         </p>
 
-        <dl className="mt-8 grid gap-3 sm:grid-cols-3" aria-label="Milestone budget">
-          <BudgetValue label="Funding goal" value={budget.fundingGoal} />
-          <BudgetValue label="Allocated" value={budget.allocated} />
-          <BudgetValue label="Remaining" value={budget.remaining} highlight />
-        </dl>
-
-        {budget.isOverBudget && (
+        {fundingGoal <= 0 && (
           <div
             role="alert"
-            className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100"
+            className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
           >
-            Milestones exceed the funding goal by ${(
-              budget.allocated - budget.fundingGoal
-            ).toLocaleString()}. Remove a milestone or increase the funding
-            goal before continuing.
+            Set a funding goal in the Funding step before adding milestones.
           </div>
         )}
 
-        {milestones.length > 0 && (
-          <div className="mt-8">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-              Added milestones
-            </h3>
-            <ul className="mt-3 space-y-3">
-              {milestones.map((milestone, index) => (
-                <li
-                  key={`${milestone.title}-${index}`}
-                  className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700"
-                >
-                  <div>
-                    <p className="font-semibold text-slate-950 dark:text-white">
-                      {milestone.title}
-                    </p>
-                    {milestone.description && (
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                        {milestone.description}
-                      </p>
-                    )}
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                      {(creationData.currency ?? "$") + milestone.amount.toLocaleString()}
-                      {milestone.dueDate ? ` · Due ${milestone.dueDate}` : ""}
-                    </p>
+        <ol className="mt-8 space-y-4" aria-label="Milestones">
+          {milestones.map((milestone, index) => {
+            const error = validation.errors[index];
+            return (
+              <li
+                key={index}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDropIndex(index);
+                }}
+                onDragLeave={() =>
+                  setDropIndex((current) =>
+                    current === index ? null : current,
+                  )
+                }
+                onDrop={(event) => handleDrop(event, index)}
+                className={`rounded-xl border bg-slate-50 p-5 transition-colors dark:bg-slate-950 ${
+                  error
+                    ? "border-red-400 dark:border-red-700"
+                    : dropIndex === index && dragIndex !== null
+                      ? "border-indigo-500"
+                      : "border-slate-200 dark:border-slate-700"
+                } ${dragIndex === index ? "opacity-60" : ""}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        setDragIndex(index);
+                      }}
+                      onDragEnd={() => {
+                        setDragIndex(null);
+                        setDropIndex(null);
+                      }}
+                      title="Drag to reorder"
+                      aria-hidden="true"
+                      className="cursor-grab select-none rounded-md px-2 py-1 text-lg leading-none text-slate-400 hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-800"
+                    >
+                      ⠿
+                    </span>
+                    <h3 className="font-semibold text-slate-950 dark:text-white">
+                      Milestone {index + 1}
+                    </h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeMilestone(index)}
-                    className="min-h-11 shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-300 dark:hover:bg-red-950"
-                    aria-label={`Remove ${milestone.title}`}
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => reorder(index, index - 1)}
+                      disabled={index === 0}
+                      aria-label={`Move milestone ${index + 1} up`}
+                      className="min-h-11 min-w-11 rounded-lg text-slate-600 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => reorder(index, index + 1)}
+                      disabled={index === milestones.length - 1}
+                      aria-label={`Move milestone ${index + 1} down`}
+                      className="min-h-11 min-w-11 rounded-lg text-slate-600 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeMilestone(index)}
+                      aria-label={`Remove milestone ${index + 1}`}
+                      className="min-h-11 rounded-lg px-3 text-sm font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-300 dark:hover:bg-red-950"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
 
-        <div className="mt-8 rounded-xl bg-slate-50 p-5 dark:bg-slate-950">
-          <h3 className="font-semibold text-slate-950 dark:text-white">
-            Add a milestone
-          </h3>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            <div>
-              <label htmlFor="milestoneTitle" className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                Title
-              </label>
-              <input
-                id="milestoneTitle"
-                type="text"
-                value={draft.title}
-                onChange={(event) => updateDraft({ title: event.target.value })}
-                className={FIELD_CLASS}
-              />
-            </div>
-            <CurrencyInputField
-              id="milestoneAmount"
-              label="Milestone goal"
-              min={0.01}
-              max={budget.remaining}
-              value={draft.amount || ""}
-              onChange={(amount) => updateDraft({ amount })}
-              helperText={`Up to $${budget.remaining.toLocaleString()} remains available.`}
-              error={
-                fundingGoal <= 0 && draft.amount > 0
-                  ? "Set a funding goal in the Story step before allocating milestones."
-                  : amountExceedsBudget
-                    ? `Milestone goal cannot exceed the remaining $${budget.remaining.toLocaleString()}.`
-                    : undefined
-              }
-            />
-            <div className="sm:col-span-2">
-              <label htmlFor="milestoneDescription" className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                Description <span className="font-normal text-slate-500">(optional)</span>
-              </label>
-              <textarea
-                id="milestoneDescription"
-                rows={3}
-                value={draft.description}
-                onChange={(event) => updateDraft({ description: event.target.value })}
-                className={FIELD_CLASS}
-              />
-            </div>
-            <DatePickerField
-              id="milestoneDueDate"
-              label="Due date"
-              optional
-              max={creationData.endDate || undefined}
-              value={draft.dueDate}
-              onChange={(dueDate) => updateDraft({ dueDate })}
-              helperText={
-                creationData.endDate
-                  ? `Choose a date on or before ${creationData.endDate}.`
-                  : "Choose the expected completion date."
-              }
-            />
-          </div>
-          <button
-            type="button"
-            onClick={addMilestone}
-            disabled={!canAddMilestone}
-            className="mt-5 min-h-11 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-          >
-            Add milestone
-          </button>
-        </div>
+                <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor={`milestone-${index}-title`}
+                      className="text-sm font-semibold text-slate-800 dark:text-slate-200"
+                    >
+                      Title
+                    </label>
+                    <input
+                      id={`milestone-${index}-title`}
+                      type="text"
+                      value={milestone.title}
+                      onChange={(event) =>
+                        updateMilestone(index, { title: event.target.value })
+                      }
+                      className={FIELD_CLASS}
+                    />
+                  </div>
+                  <CurrencyInputField
+                    id={`milestone-${index}-amount`}
+                    label="Target amount"
+                    min={0.01}
+                    max={fundingGoal || undefined}
+                    value={milestone.amount || ""}
+                    onChange={(amount) => updateMilestone(index, { amount })}
+                  />
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor={`milestone-${index}-description`}
+                      className="text-sm font-semibold text-slate-800 dark:text-slate-200"
+                    >
+                      Description{" "}
+                      <span className="font-normal text-slate-500">
+                        (optional)
+                      </span>
+                    </label>
+                    <textarea
+                      id={`milestone-${index}-description`}
+                      rows={2}
+                      value={milestone.description}
+                      onChange={(event) =>
+                        updateMilestone(index, {
+                          description: event.target.value,
+                        })
+                      }
+                      className={FIELD_CLASS}
+                    />
+                  </div>
+                  <DatePickerField
+                    id={`milestone-${index}-dueDate`}
+                    label="Expected completion date"
+                    max={creationData.endDate || undefined}
+                    value={milestone.dueDate}
+                    onChange={(dueDate) => updateMilestone(index, { dueDate })}
+                    helperText={
+                      creationData.endDate
+                        ? `On or before the campaign end date, ${creationData.endDate}.`
+                        : undefined
+                    }
+                  />
+                </div>
+
+                {error && (
+                  <p
+                    role="alert"
+                    className="mt-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+                  >
+                    {error}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+
+        <button
+          type="button"
+          onClick={addMilestone}
+          disabled={milestones.length >= MAX_MILESTONES}
+          className="mt-6 min-h-11 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+        >
+          Add milestone
+        </button>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          {milestones.length >= MAX_MILESTONES
+            ? `You have reached the maximum of ${MAX_MILESTONES} milestones.`
+            : `${milestones.length} of ${MAX_MILESTONES} milestones added. Milestones are optional.`}
+        </p>
       </div>
 
       <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 dark:border-slate-800 sm:flex-row sm:justify-between">
-        <button type="button" onClick={handleBack} className="min-h-11 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
-          Back: Story
+        <button
+          type="button"
+          onClick={handleBack}
+          className="min-h-11 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+        >
+          Back: Funding
         </button>
-        <button type="button" onClick={handleNext} disabled={budget.isOverBudget} className="min-h-11 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={!canContinue}
+          className="min-h-11 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        >
           Next: Assets
         </button>
       </div>
     </section>
-  );
-}
-
-function BudgetValue({
-  label,
-  value,
-  highlight = false,
-}: {
-  label: string;
-  value: number;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-xl border p-4 ${
-        highlight
-          ? "border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950"
-          : "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950"
-      }`}
-    >
-      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        {label}
-      </dt>
-      <dd className="mt-1 text-lg font-bold text-slate-950 dark:text-white">
-        ${value.toLocaleString()}
-      </dd>
-    </div>
   );
 }
